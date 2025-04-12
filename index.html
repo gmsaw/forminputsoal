@@ -10,6 +10,7 @@
             --secondary: #F5F7FA;
             --danger: #E74C3C;
             --warning: #F39C12;
+            --success: #2ECC71;
         }
 
         body {
@@ -90,6 +91,11 @@
             color: white;
         }
 
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
         .btn-secondary {
             background: #666;
             color: white;
@@ -123,6 +129,18 @@
         .btn-sm {
             padding: 8px 12px;
             font-size: 14px;
+        }
+
+        .save-status {
+            margin-top: 10px;
+            color: var(--success);
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .save-status.show {
+            opacity: 1;
         }
     </style>
 </head>
@@ -185,9 +203,11 @@
             <div class="action-buttons">
                 <button class="btn btn-primary" id="submitBtn" onclick="addQuestion()">Tambah Soal</button>
                 <button class="btn btn-warning" id="cancelEditBtn" style="display: none;" onclick="cancelEdit()">Batal Edit</button>
+                <button class="btn btn-success" onclick="saveToLocalStorage()">Simpan ke Browser</button>
                 <button class="btn btn-secondary" onclick="exportJSON()">Download JSON</button>
                 <button class="btn btn-secondary" onclick="exportExcel()">Download Excel</button>
             </div>
+            <div class="save-status" id="saveStatus">Data berhasil disimpan!</div>
         </div>
 
         <table class="questions-table">
@@ -213,11 +233,18 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script>
+        // Inisialisasi variabel
         let questions = [];
         let questionCount = 1;
         let currentImage = '';
         let editMode = false;
         let currentEditId = null;
+        const STORAGE_KEY = 'bank_soal_app';
+
+        // Saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromLocalStorage();
+        });
 
         // Handle image preview
         document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -288,6 +315,7 @@
 
             updateTable();
             clearForm();
+            saveToLocalStorage();
         }
 
         function editQuestion(id) {
@@ -322,6 +350,7 @@
             if (confirm('Apakah Anda yakin ingin menghapus soal ini?')) {
                 questions = questions.filter(q => q.no !== id);
                 updateTable();
+                saveToLocalStorage();
                 
                 // Jika yang dihapus sedang dalam mode edit, keluar dari mode edit
                 if (editMode && currentEditId === id) {
@@ -362,6 +391,13 @@
                     </td>
                 </tr>
             `).join('');
+
+            // Update questionCount jika diperlukan
+            if (questions.length > 0) {
+                questionCount = Math.max(...questions.map(q => q.no)) + 1;
+            } else {
+                questionCount = 1;
+            }
         }
 
         function clearForm() {
@@ -376,6 +412,40 @@
             document.getElementById('preview').src = '';
             document.getElementById('preview').style.display = 'none';
             currentImage = '';
+        }
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    questions: questions,
+                    questionCount: questionCount
+                }));
+                showSaveStatus();
+            } catch (e) {
+                alert('Gagal menyimpan ke localStorage: ' + e.message);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    questions = parsed.questions || [];
+                    questionCount = parsed.questionCount || 1;
+                    updateTable();
+                }
+            } catch (e) {
+                console.error('Gagal memuat dari localStorage:', e);
+            }
+        }
+
+        function showSaveStatus() {
+            const status = document.getElementById('saveStatus');
+            status.classList.add('show');
+            setTimeout(() => {
+                status.classList.remove('show');
+            }, 2000);
         }
 
         function exportJSON() {
